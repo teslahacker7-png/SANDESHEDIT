@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Image Text Editor OCR</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      background: #111;
+      color: white;
+      text-align: center;
+    }
+    canvas {
+      border: 2px solid #444;
+      margin-top: 10px;
+    }
+    input {
+      margin: 4px;
+      padding: 6px;
+      width: 80%;
+    }
+    button {
+      padding: 8px 14px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Image Text Customize Tool</h2>
+
+<input type="file" id="upload" accept="image/*"><br>
+<button onclick="runOCR()">Analyze Image</button>
+
+<div id="textInputs"></div>
+
+<br>
+<canvas id="canvas"></canvas><br>
+
+<button onclick="downloadImage()">Download Image</button>
+
+<script>
+let img = new Image();
+let words = [];
+
+document.getElementById("upload").addEventListener("change", e => {
+  let file = e.target.files[0];
+  let reader = new FileReader();
+  reader.onload = () => {
+    img.src = reader.result;
+    img.onload = () => {
+      let canvas = document.getElementById("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      let ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+    };
+  };
+  reader.readAsDataURL(file);
+});
+
+function runOCR() {
+  if (!img.src) return alert("Upload image first");
+
+  Tesseract.recognize(img.src, 'eng').then(result => {
+    words = result.data.words;
+    let box = document.getElementById("textInputs");
+    box.innerHTML = "";
+
+    words.forEach((w, i) => {
+      let input = document.createElement("input");
+      input.value = w.text;
+      input.oninput = () => {
+        words[i].newText = input.value;
+        redraw();
+      };
+      box.appendChild(input);
+    });
+  });
+}
+
+function redraw() {
+  let canvas = document.getElementById("canvas");
+  let ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+
+  ctx.fillStyle = "black";
+
+  words.forEach(w => {
+    if (w.newText) {
+      let x = w.bbox.x0;
+      let y = w.bbox.y1;
+      let size = w.bbox.y1 - w.bbox.y0;
+      ctx.font = size + "px Arial";
+      ctx.fillText(w.newText, x, y);
+    }
+  });
+}
+
+function downloadImage() {
+  let canvas = document.getElementById("canvas");
+  let link = document.createElement("a");
+  link.download = "edited.png";
+  link.href = canvas.toDataURL();
+  link.click();
+}
+</script>
+
+</body>
+</html>
